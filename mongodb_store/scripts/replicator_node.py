@@ -10,14 +10,73 @@ import rospy
 import actionlib
 import pymongo
 import os
+from Queue import Queue
 import shutil
 import subprocess
+import sys
+import time
+from threading import Thread, Lock
 from mongodb_store_msgs.msg import MoveEntriesAction, MoveEntriesFeedback
 from datetime import datetime
 
 
 import mongodb_store.util
 MongoClient = mongodb_store.util.import_MongoClient()
+
+
+class Process(object):
+    def __init__(self, on_output, on_error):
+        self.poll_rate = 0.1
+        self.proc = None
+        self.threads = list()
+        self.lock = Lock()
+        self.on_output = on_output
+        self.on_error = on_error
+
+    def start(self, cmd):
+        self.proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=1,
+            close_fds='posix' in sys.builtin_module_names,
+            env=os.environ.copy())
+
+        self.threads = [
+            Thread(target=self._put,
+                   args=(self.proc.stdout, self.on_output)),
+            Thread(target=self._put,
+                   args=(self.proc.stderr, self.on_error)),
+        ]
+        for t in self.threads:
+            t.daemon = True
+            t.start()
+
+    def stop(self):
+        try:
+            self.proc.terminate()
+        except:
+            self.proc.kill()
+        for t in self.threads:
+            if t.is_alive:
+                t.join()
+
+    def wait(self):
+        self.proc.wait()
+
+    def _put(self, stream, func):
+        buff = str()
+        while self.proc.poll() is None:
+            c = stream.read(1)
+            if c == os.linesep:
+                try:
+                    func(buff)
+                except Exception as e:
+                    rospy.logerr(e)
+            else:
+                buff += c
+        else:
+            rospy.loginfo('Thread is dead for: %s' % stream)
 
 class Replicator(object):
     def __init__(self):
@@ -192,6 +251,16 @@ class Replicator(object):
 if __name__ == '__main__':
     rospy.init_node("mongodb_replicator")
 
-    store = Replicator()
+    # store = Replicator()
     
-    rospy.spin()
+    # rospy.spin()
+
+    def on_output(s):
+        rospy.loginfo("on_ouptut: " + s)
+
+    def on_error(s):
+        rospy.loginfo("on_error: " + s)
+
+    p = Process(on_output, on_error)
+    p.start(["ping", "8.8.8.8"])
+    p.wait()
