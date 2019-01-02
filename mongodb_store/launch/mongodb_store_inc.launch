@@ -49,7 +49,7 @@
   <param name="queue_size" value="$(arg queue_size)" />
   </node> <!-- output="screen" -->
 
-  <node name="replicator_node" pkg="mongodb_store" type="replicator_node.py" machine="$(arg machine)">
+  <node name="replicator_node" pkg="mongodb_store" type="replicator_node.py" machine="$(arg machine)" output="screen">
     <param name="replicator_dump_path" value="$(arg replicator_dump_path)"/>
   </node>
 
