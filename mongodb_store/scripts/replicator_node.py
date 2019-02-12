@@ -79,12 +79,13 @@ class Process(object):
                 if self.process.poll() is None:
                     rospy.logerr('[{}] The process could not be killed. (pid={}).'.format(
                         self.cmd[0], self.process.pid))
-                elif self.process.poll() == 0:
-                    rospy.loginfo('[{}] The process (pid={}) was successfully shutdown (code={})'.format(
-                        self.cmd[0], self.process.pid, self.process.returncode))
                 else:
-                    rospy.logerr('[{}] The process (pid={}) was shutdown abnormaly (code={})'.format(
-                        self.cmd[0], self.process.pid, self.process.returncode))
+                    if self.process.poll() == 0:
+                        rospy.loginfo('[{}] The process (pid={}) was successfully shutdown (code={})'.format(
+                            self.cmd[0], self.process.pid, self.process.returncode))
+                    else:
+                        rospy.logerr('[{}] The process (pid={}) was shutdown abnormaly (code={})'.format(
+                            self.cmd[0], self.process.pid, self.process.returncode))
 
                     for th in self.threads:
                         try:
